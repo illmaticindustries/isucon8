@@ -85,11 +85,11 @@ module Torb
         end
 
         # sheets = db.query('SELECT * FROM sheets ORDER BY `rank`, num')
-	sheets = db.xquery('select * From sheets s left join (select * from reservations where canceled_at is null and event_id = ?) as r on s.id = r.sheet_id', event_id)
-	sheets.each do |sheet|
-	  event['sheets'][sheet['rank']]['price'] ||= event['price'] + sheet['price']
-	  event['total'] += 1
-	  event['sheets'][sheet['rank']]['total'] += 1
+        sheets = db.xquery('select * From sheets s left join (select * from reservations where canceled_at is null and event_id = ?) as r on s.id = r.sheet_id', event_id)
+        sheets.each do |sheet|
+          event['sheets'][sheet['rank']]['price'] ||= event['price'] + sheet['price']
+          event['total'] += 1
+          event['sheets'][sheet['rank']]['total'] += 1
 
           # reservation = db.xquery('SELECT * FROM reservations WHERE event_id = ? AND sheet_id = ? AND canceled_at IS NULL GROUP BY event_id, sheet_id HAVING reserved_at = MIN(reserved_at)', event['id'], sheet['id']).first
           if sheet['event_id']
@@ -100,9 +100,9 @@ module Torb
             event['remains'] += 1
             event['sheets'][sheet['rank']]['remains'] += 1
           end
-          
+
           event['sheets'][sheet['rank']]['detail'].push(sheet)
-          
+
           sheet.delete('id')
           sheet.delete('price')
           sheet.delete('rank')
@@ -280,8 +280,8 @@ module Torb
       rank = body_params['sheet_rank']
 
       user  = get_login_user
-      event = get_event(event_id, user['id'])
-      halt_with_error 404, 'invalid_event' unless event && event['public']
+      event = db.xquery('select * from events where id = ?', event_id).first
+      halt_with_error 404, 'invalid_event' unless event && event['public_fg'] == true
       halt_with_error 400, 'invalid_rank' unless validate_rank(rank)
 
       sheet = nil
