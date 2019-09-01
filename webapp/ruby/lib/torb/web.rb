@@ -3,12 +3,19 @@ require 'sinatra/base'
 require 'erubi'
 require 'mysql2'
 require 'mysql2-cs-bind'
+require 'sinatra/custom_logger'
+require 'logger'
 
 module Torb
   class Web < Sinatra::Base
+    helpers Sinatra::CustomLogger
     configure :development do
       require 'sinatra/reloader'
       register Sinatra::Reloader
+
+      logger = Logger.new(File.open("log/development.log", 'a'))
+      logger.level = Logger::DEBUG
+      set :logger, logger
     end
 
     set :root, File.expand_path('../..', __dir__)
@@ -100,9 +107,9 @@ module Torb
             event['remains'] += 1
             event['sheets'][sheet['rank']]['remains'] += 1
           end
-          
+
           event['sheets'][sheet['rank']]['detail'].push(sheet)
-          
+
           sheet.delete('id')
           sheet.delete('price')
           sheet.delete('rank')
