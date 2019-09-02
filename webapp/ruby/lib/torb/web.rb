@@ -3,12 +3,19 @@ require 'sinatra/base'
 require 'erubi'
 require 'mysql2'
 require 'mysql2-cs-bind'
+require 'sinatra/custom_logger'
+require 'logger'
 
 module Torb
   class Web < Sinatra::Base
+    helpers Sinatra::CustomLogger
     configure :development do
       require 'sinatra/reloader'
       register Sinatra::Reloader
+
+      logger = Logger.new(File.open("log/development.log", 'a'))
+      logger.level = Logger::DEBUG
+      set :logger, logger
     end
 
     set :root, File.expand_path('../..', __dir__)
