@@ -3,12 +3,19 @@ require 'sinatra/base'
 require 'erubi'
 require 'mysql2'
 require 'mysql2-cs-bind'
+require 'sinatra/custom_logger'
+require 'logger'
 
 module Torb
   class Web < Sinatra::Base
+    helpers Sinatra::CustomLogger
     configure :development do
       require 'sinatra/reloader'
       register Sinatra::Reloader
+
+      logger = Logger.new(File.open("log/development.log", 'a'))
+      logger.level = Logger::DEBUG
+      set :logger, logger
     end
 
     set :root, File.expand_path('../..', __dir__)
@@ -81,6 +88,7 @@ module Torb
           event['sheets'][rank] = { 'detail' => [] }
         end
 
+
         sheets = db.xquery('SELECT *
           FROM sheets s
           LEFT JOIN
@@ -88,6 +96,7 @@ module Torb
              FROM reservations
              WHERE canceled_at IS NULL
                AND event_id = ?) AS r ON s.id = r.sheet_id', event_id)
+
 
         sheets.each do |sheet|
           event['sheets'][sheet['rank']]['price'] ||= event['price'] + sheet['price']
@@ -98,6 +107,7 @@ module Torb
           end
 
           event['sheets'][sheet['rank']]['detail'].push(sheet)
+
         end
 
         event['total'] = 1000
@@ -283,8 +293,8 @@ module Torb
       rank = body_params['sheet_rank']
 
       user  = get_login_user
-      event = get_event(event_id, user['id'])
-      halt_with_error 404, 'invalid_event' unless event && event['public']
+      event = db.xquery('select * from events where id = ?', event_id).first
+      halt_with_error 404, 'invalid_event' unless event && event['public_fg'] == true
       halt_with_error 400, 'invalid_rank' unless validate_rank(rank)
 
       sheet = nil
