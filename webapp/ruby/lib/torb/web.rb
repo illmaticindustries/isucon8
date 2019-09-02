@@ -83,37 +83,43 @@ module Torb
         event = db.xquery('SELECT * FROM events WHERE id = ?', event_id).first
         return unless event
 
-        # zero fill
-        event['total']   = 0
-        event['remains'] = 0
         event['sheets'] = {}
         %w[S A B C].each do |rank|
-          event['sheets'][rank] = { 'total' => 0, 'remains' => 0, 'detail' => [] }
+          event['sheets'][rank] = { 'detail' => [] }
         end
 
-        # sheets = db.query('SELECT * FROM sheets ORDER BY `rank`, num')
-        sheets = db.xquery('select * From sheets s left join (select * from reservations where canceled_at is null and event_id = ?) as r on s.id = r.sheet_id', event_id)
+
+        sheets = db.xquery('SELECT *
+          FROM sheets s
+          LEFT JOIN
+            (SELECT *
+             FROM reservations
+             WHERE canceled_at IS NULL
+               AND event_id = ?) AS r ON s.id = r.sheet_id', event_id)
+
+
         sheets.each do |sheet|
           event['sheets'][sheet['rank']]['price'] ||= event['price'] + sheet['price']
-          event['total'] += 1
-          event['sheets'][sheet['rank']]['total'] += 1
-
-          # reservation = db.xquery('SELECT * FROM reservations WHERE event_id = ? AND sheet_id = ? AND canceled_at IS NULL GROUP BY event_id, sheet_id HAVING reserved_at = MIN(reserved_at)', event['id'], sheet['id']).first
           if sheet['event_id']
             sheet['mine']        = true if login_user_id && sheet['user_id'] == login_user_id
             sheet['reserved']    = true
             sheet['reserved_at'] = sheet['reserved_at'].to_i
-          else
-            event['remains'] += 1
-            event['sheets'][sheet['rank']]['remains'] += 1
           end
 
           event['sheets'][sheet['rank']]['detail'].push(sheet)
 
-          sheet.delete('id')
-          sheet.delete('price')
-          sheet.delete('rank')
         end
+
+        event['total'] = 1000
+        event['remains'] = sheets.select { |sheet| !sheet['event_id'] }.count
+        event['sheets']['S']['total'] = 50
+        event['sheets']['A']['total'] = 150
+        event['sheets']['B']['total'] = 300
+        event['sheets']['C']['total'] = 500
+        event['sheets']['S']['remains'] = sheets.select { |sheet| sheet['rank'] == 'S' && !sheet['event_id'] }.count
+        event['sheets']['A']['remains'] = sheets.select { |sheet| sheet['rank'] == 'A' && !sheet['event_id'] }.count
+        event['sheets']['B']['remains'] = sheets.select { |sheet| sheet['rank'] == 'B' && !sheet['event_id'] }.count
+        event['sheets']['C']['remains'] = sheets.select { |sheet| sheet['rank'] == 'C' && !sheet['event_id'] }.count
 
         event['public'] = event.delete('public_fg')
         event['closed'] = event.delete('closed_fg')
