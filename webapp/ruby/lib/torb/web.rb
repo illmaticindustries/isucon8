@@ -85,10 +85,6 @@ module Torb
         return unless event
 
         event['sheets'] = {}
-        %w[S A B C].each do |rank|
-          event['sheets'][rank] = { 'detail' => [] }
-        end
-
 
         sheets = db.xquery('SELECT *
           FROM sheets s
@@ -98,9 +94,9 @@ module Torb
              WHERE canceled_at IS NULL
                AND event_id = ?) AS r ON s.id = r.sheet_id', event_id)
 
+        %w[S A B C].map { |rank| event['sheets'][rank] = { 'detail' => [] } }
 
         sheets.each do |sheet|
-          #event['sheets'][sheet['rank']]['price'] ||= event['price'] + sheet['price']
           if sheet['event_id']
             sheet['mine']        = true if login_user_id && sheet['user_id'] == login_user_id
             sheet['reserved']    = true
@@ -108,9 +104,12 @@ module Torb
           end
 
           event['sheets'][sheet['rank']]['detail'].push(sheet)
-
         end
 
+        event_with_numeric(event, sheets)
+      end
+
+      def event_with_numeric(event, sheets)
         event['total'] = 1000
         event['remains'] = sheets.select { |sheet| !sheet['event_id'] }.count
         event['sheets']['S']['total'] = 50
@@ -125,10 +124,8 @@ module Torb
 	event['sheets']['A']['price'] = event['price'] + 3000 
 	event['sheets']['B']['price'] = event['price'] + 1000
 	event['sheets']['C']['price'] = event['price']
-
         event['public'] = event.delete('public_fg')
         event['closed'] = event.delete('closed_fg')
-
         event
       end
 
