@@ -76,6 +76,7 @@ module Torb
         #  db.query('ROLLBACK')
         #end
 
+        #events = db.query('SELECT * FROM events ORDER BY id ASC').select(&where)
         events
       end
 
@@ -99,7 +100,7 @@ module Torb
 
 
         sheets.each do |sheet|
-          event['sheets'][sheet['rank']]['price'] ||= event['price'] + sheet['price']
+          #event['sheets'][sheet['rank']]['price'] ||= event['price'] + sheet['price']
           if sheet['event_id']
             sheet['mine']        = true if login_user_id && sheet['user_id'] == login_user_id
             sheet['reserved']    = true
@@ -120,6 +121,10 @@ module Torb
         event['sheets']['A']['remains'] = sheets.select { |sheet| sheet['rank'] == 'A' && !sheet['event_id'] }.count
         event['sheets']['B']['remains'] = sheets.select { |sheet| sheet['rank'] == 'B' && !sheet['event_id'] }.count
         event['sheets']['C']['remains'] = sheets.select { |sheet| sheet['rank'] == 'C' && !sheet['event_id'] }.count
+	event['sheets']['S']['price'] = event['price'] + 5000 
+	event['sheets']['A']['price'] = event['price'] + 3000 
+	event['sheets']['B']['price'] = event['price'] + 1000
+	event['sheets']['C']['price'] = event['price']
 
         event['public'] = event.delete('public_fg')
         event['closed'] = event.delete('closed_fg')
