@@ -65,20 +65,41 @@ module Torb
 
         #db.query('BEGIN')
         #begin
-          event_ids = db.query('SELECT * FROM events ORDER BY id ASC').select(&where).map { |e| e['id'] }
-          events = event_ids.map do |event_id|
-            #event = get_event_without_detail(event_id)
-            #event['sheets'].each { |sheet| sheet.delete('detail') }
-            #event
-            get_event_without_detail(event_id)
-          end
+        # idだけ返したい
+          #event_ids = db.query('SELECT * FROM events ORDER BY id ASC').select(&where).map { |e| e['id'] }
+          # loopをしないで event_ids で event を取得する
+          #events = event_ids.map do |event_id|
+          #  #event = get_event_without_detail(event_id)
+          #  #event['sheets'].each { |sheet| sheet.delete('detail') }
+          #  #event
+          #  get_event_without_detail(event_id)
+          #end
+
+events = db.query('SELECT * FROM events ORDER BY id ASC').select(&where)
+events.map do |event|
+
+  event['sheets'] = {}
+  %w[S A B C].map { |rank| event['sheets'][rank] = {} }
+
+  sheets = db.xquery('SELECT *
+    FROM sheets s
+    LEFT JOIN
+      (SELECT *
+       FROM reservations
+       WHERE canceled_at IS NULL
+         AND event_id = ?) AS r ON s.id = r.sheet_id', event_id)
+
+  event_with_numeric(event, sheets)
+
+end
+
         #  db.query('COMMIT')
         #rescue
         #  db.query('ROLLBACK')
         #end
 
         #events = db.query('SELECT * FROM events ORDER BY id ASC').select(&where)
-        events
+        #events
       end
 
       def get_event(event_id, login_user_id = nil)
