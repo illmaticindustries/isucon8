@@ -2,3 +2,4 @@ bin
 pkg
 vendor
 cache/*.gob
+result.json
