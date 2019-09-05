@@ -63,20 +63,43 @@ module Torb
       def get_events(where = nil)
         where ||= ->(e) { e['public_fg'] }
 
-        db.query('BEGIN')
-        begin
-          event_ids = db.query('SELECT * FROM events ORDER BY id ASC').select(&where).map { |e| e['id'] }
-          events = event_ids.map do |event_id|
-            event = get_event(event_id)
-            event['sheets'].each { |sheet| sheet.delete('detail') }
-            event
-          end
-          db.query('COMMIT')
-        rescue
-          db.query('ROLLBACK')
-        end
+        #db.query('BEGIN')
+        #begin
+        # idだけ返したい
+          #event_ids = db.query('SELECT * FROM events ORDER BY id ASC').select(&where).map { |e| e['id'] }
+          # loopをしないで event_ids で event を取得する
+          #events = event_ids.map do |event_id|
+          #  #event = get_event_without_detail(event_id)
+          #  #event['sheets'].each { |sheet| sheet.delete('detail') }
+          #  #event
+          #  get_event_without_detail(event_id)
+          #end
 
-        events
+events = db.query('SELECT * FROM events ORDER BY id ASC').select(&where)
+events.map do |event|
+
+  event['sheets'] = {}
+  %w[S A B C].map { |rank| event['sheets'][rank] = {} }
+
+  sheets = db.xquery('SELECT *
+    FROM sheets s
+    LEFT JOIN
+      (SELECT *
+       FROM reservations
+       WHERE canceled_at IS NULL
+         AND event_id = ?) AS r ON s.id = r.sheet_id', event['id'])
+
+  event_with_numeric(event, sheets)
+
+end
+
+        #  db.query('COMMIT')
+        #rescue
+        #  db.query('ROLLBACK')
+        #end
+
+        #events = db.query('SELECT * FROM events ORDER BY id ASC').select(&where)
+        #events
       end
 
       def get_event(event_id, login_user_id = nil)
@@ -84,10 +107,6 @@ module Torb
         return unless event
 
         event['sheets'] = {}
-        %w[S A B C].each do |rank|
-          event['sheets'][rank] = { 'detail' => [] }
-        end
-
 
         sheets = db.xquery('SELECT *
           FROM sheets s
@@ -97,9 +116,9 @@ module Torb
              WHERE canceled_at IS NULL
                AND event_id = ?) AS r ON s.id = r.sheet_id', event_id)
 
+        %w[S A B C].map { |rank| event['sheets'][rank] = { 'detail' => [] } }
 
         sheets.each do |sheet|
-          event['sheets'][sheet['rank']]['price'] ||= event['price'] + sheet['price']
           if sheet['event_id']
             sheet['mine']        = true if login_user_id && sheet['user_id'] == login_user_id
             sheet['reserved']    = true
@@ -107,9 +126,30 @@ module Torb
           end
 
           event['sheets'][sheet['rank']]['detail'].push(sheet)
-
         end
 
+        event_with_numeric(event, sheets)
+      end
+
+      def get_event_without_detail(event_id, login_user_id = nil)
+        event = db.xquery('SELECT * FROM events WHERE id = ?', event_id).first
+        return unless event
+
+        event['sheets'] = {}
+        %w[S A B C].map { |rank| event['sheets'][rank] = {} }
+
+        sheets = db.xquery('SELECT *
+          FROM sheets s
+          LEFT JOIN
+            (SELECT *
+             FROM reservations
+             WHERE canceled_at IS NULL
+               AND event_id = ?) AS r ON s.id = r.sheet_id', event_id)
+
+        event_with_numeric(event, sheets)
+      end
+      
+      def event_with_numeric(event, sheets)
         event['total'] = 1000
         event['remains'] = sheets.select { |sheet| !sheet['event_id'] }.count
         event['sheets']['S']['total'] = 50
@@ -120,10 +160,12 @@ module Torb
         event['sheets']['A']['remains'] = sheets.select { |sheet| sheet['rank'] == 'A' && !sheet['event_id'] }.count
         event['sheets']['B']['remains'] = sheets.select { |sheet| sheet['rank'] == 'B' && !sheet['event_id'] }.count
         event['sheets']['C']['remains'] = sheets.select { |sheet| sheet['rank'] == 'C' && !sheet['event_id'] }.count
-
+	event['sheets']['S']['price'] = event['price'] + 5000 
+	event['sheets']['A']['price'] = event['price'] + 3000 
+	event['sheets']['B']['price'] = event['price'] + 1000
+	event['sheets']['C']['price'] = event['price']
         event['public'] = event.delete('public_fg')
         event['closed'] = event.delete('closed_fg')
-
         event
       end
 
