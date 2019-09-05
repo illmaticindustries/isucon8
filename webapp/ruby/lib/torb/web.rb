@@ -87,7 +87,7 @@ events.map do |event|
       (SELECT *
        FROM reservations
        WHERE canceled_at IS NULL
-         AND event_id = ?) AS r ON s.id = r.sheet_id', event_id)
+         AND event_id = ?) AS r ON s.id = r.sheet_id', event['id'])
 
   event_with_numeric(event, sheets)
 
