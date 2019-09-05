@@ -67,9 +67,10 @@ module Torb
         #begin
           event_ids = db.query('SELECT * FROM events ORDER BY id ASC').select(&where).map { |e| e['id'] }
           events = event_ids.map do |event_id|
-            event = get_event(event_id)
-            event['sheets'].each { |sheet| sheet.delete('detail') }
-            event
+            #event = get_event_without_detail(event_id)
+            #event['sheets'].each { |sheet| sheet.delete('detail') }
+            #event
+            get_event_without_detail(event_id)
           end
         #  db.query('COMMIT')
         #rescue
@@ -109,6 +110,24 @@ module Torb
         event_with_numeric(event, sheets)
       end
 
+      def get_event_without_detail(event_id, login_user_id = nil)
+        event = db.xquery('SELECT * FROM events WHERE id = ?', event_id).first
+        return unless event
+
+        event['sheets'] = {}
+        %w[S A B C].map { |rank| event['sheets'][rank] = {} }
+
+        sheets = db.xquery('SELECT *
+          FROM sheets s
+          LEFT JOIN
+            (SELECT *
+             FROM reservations
+             WHERE canceled_at IS NULL
+               AND event_id = ?) AS r ON s.id = r.sheet_id', event_id)
+
+        event_with_numeric(event, sheets)
+      end
+      
       def event_with_numeric(event, sheets)
         event['total'] = 1000
         event['remains'] = sheets.select { |sheet| !sheet['event_id'] }.count
