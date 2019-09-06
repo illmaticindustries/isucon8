@@ -284,8 +284,23 @@ end
       end
 
       user['recent_reservations'] = recent_reservations
-      user['total_price'] = db.xquery('SELECT IFNULL(SUM(e.price + s.price), 0) AS total_price FROM reservations r INNER JOIN sheets s ON s.id = r.sheet_id INNER JOIN events e ON e.id = r.event_id WHERE r.user_id = ? AND r.canceled_at IS NULL', user['id']).first['total_price']
 
+      #user['total_price'] = db.xquery('SELECT IFNULL(SUM(e.price + s.price), 0) AS total_price FROM reservations r INNER JOIN sheets s ON s.id = r.sheet_id INNER JOIN events e ON e.id = r.event_id WHERE r.user_id = ? AND r.canceled_at IS NULL', user['id']).first['total_price']
+
+sheets = db.query('select * from sheets')
+events = db.query('select * from events')
+reservations = db.xquery('SELECT * FROM reservations WHERE user_id = ? AND canceled_at IS NULL', user['id'])
+
+user['total_price'] = reservations.sum { |reservation|
+  sheets.select { |sheet|
+    sheet['id'] == reservation['sheet_id']
+  }.sum { |sheet| sheet['price'] } +
+  events.select { |event|
+    event['id'] == reservation['event_id']
+  }.sum { |event| event['price'] }
+}
+
+    sheets = db.query('select * from sheets')
       rows = db.xquery('SELECT event_id FROM reservations WHERE user_id = ? GROUP BY event_id ORDER BY MAX(IFNULL(canceled_at, reserved_at)) DESC LIMIT 5', user['id'])
       recent_events = rows.map do |row|
         event = get_event(row['event_id'])
