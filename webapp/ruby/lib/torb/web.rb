@@ -269,11 +269,11 @@ end
         event = db.xquery('SELECT * FROM events WHERE id = ?', row['event_id']).first
 
         price = event['price'] 
-	if row['sheet_rank'] == 'S' then
+        if row['sheet_rank'] == 'S' then
           price += 5000
-	elsif row['sheet_rank'] == 'A' then
+        elsif row['sheet_rank'] == 'A' then
           price += 3000
-	elsif row['sheet_rank'] == 'B' then
+        elsif row['sheet_rank'] == 'B' then
           price += 1000
         end
 
