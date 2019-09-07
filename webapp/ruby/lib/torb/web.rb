@@ -291,21 +291,25 @@ sheets = db.query('select * from sheets')
 events = db.query('select * from events')
 reservations = db.xquery('SELECT * FROM reservations WHERE user_id = ? AND canceled_at IS NULL', user['id'])
 
-user['total_price'] = reservations.sum { |reservation|
-  sheets.select { |sheet|
-    sheet['id'] == reservation['sheet_id']
-  }.sum { |sheet| sheet['price'] } +
-  events.select { |event|
-    event['id'] == reservation['event_id']
-  }.sum { |event| event['price'] }
-}
+# nilガードする
+user['total_price'] = reservations.sum do |reservation|
+  sheets.select { |sheet| sheet['id'] == reservation['sheet_id'] }.sum { |sheet| sheet['price'] } +
+  events.select { |event| event['id'] == reservation['event_id'] }.sum { |event| event['price'] }
+end
 
-    sheets = db.query('select * from sheets')
+# クエリを発行しない
+# event_ids
       rows = db.xquery('SELECT event_id FROM reservations WHERE user_id = ? GROUP BY event_id ORDER BY MAX(IFNULL(canceled_at, reserved_at)) DESC LIMIT 5', user['id'])
+
+# get_eventsで取得する
+# get_events_by_idsを作る
+# event_idsで絞り込む
+
       recent_events = rows.map do |row|
-        event = get_event(row['event_id'])
-        event['sheets'].each { |_, sheet| sheet.delete('detail') }
-        event
+        #event = get_event(row['event_id'])
+        #event['sheets'].each { |_, sheet| sheet.delete('detail') }
+        #event
+        get_event_without_detail(row['event_id'])
       end
       user['recent_events'] = recent_events
 
